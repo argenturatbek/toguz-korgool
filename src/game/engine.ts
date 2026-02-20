@@ -8,22 +8,23 @@ import { createInitialState } from './state.js';
 const POSITIONS = 20;
 const HOLE_COUNT = 9;
 
-/** Position 0 = P0 hole 9 (holes[0][8]), 1 = P0 hole 8, ..., 8 = P0 hole 1, 9 = kazan0, 10..17 = P1 holes 1..9, 18 = kazan1. 19 wraps to 0. */
+/** Anticlockwise: P0 hole 1 (index 0) at pos 0, hole 2 at 1, ..., hole 9 at 8, then kazan0 (9), then P1 holes 1–9 (10–17), then kazan1 (18). 19 wraps to 0. */
 function nextPosition(pos: number): number {
   return (pos + 1) % POSITIONS;
 }
 
-/** Map (player, holeIndex) to position. */
+/** Map (player, holeIndex) to position. Hole index 0 = hole 1, 8 = hole 9. */
 function holeToPosition(player: Player, holeIndex: number): number {
-  if (player === 0) return 8 - holeIndex;
+  if (player === 0) return holeIndex;
   return 10 + holeIndex;
 }
 
-/** Map position to [player, holeIndex] or 'kazan0' | 'kazan1'. */
+/** Map position to [player, holeIndex] or kazan. Position 19 wraps to P0 hole 1. */
 function positionToHole(
   pos: number
 ): { type: 'hole'; player: Player; holeIndex: number } | { type: 'kazan'; player: Player } {
-  if (pos <= 8) return { type: 'hole', player: 0, holeIndex: 8 - pos };
+  if (pos === 19) return { type: 'hole', player: 0, holeIndex: 0 };
+  if (pos <= 8) return { type: 'hole', player: 0, holeIndex: pos };
   if (pos === 9) return { type: 'kazan', player: 0 };
   if (pos <= 17) return { type: 'hole', player: 1, holeIndex: pos - 10 };
   return { type: 'kazan', player: 1 };
@@ -138,20 +139,17 @@ export function applyMove(state: GameState, holeIndex: number): MoveResult {
   return { state: next, capture };
 }
 
-/** Remaining stones on each side go to that side's total; tuz contents go to tuz owner. */
+/** When one side has no legal move (pits empty), the opponent takes all remaining stones to their kazan. */
 function endGame(state: GameState): void {
   const s = state as GameState & { phase: 'ended'; finalScores: [number, number] };
   s.phase = 'ended';
-  let score0 = s.kazans[0];
-  let score1 = s.kazans[1];
+  const cannotMove = s.currentPlayer;
+  let remaining = 0;
   for (let h = 0; h < HOLE_COUNT; h++) {
-    if (s.tuz[1] === h) score1 += s.holes[0][h];
-    else score0 += s.holes[0][h];
+    remaining += s.holes[0][h] + s.holes[1][h];
   }
-  for (let h = 0; h < HOLE_COUNT; h++) {
-    if (s.tuz[0] === h) score0 += s.holes[1][h];
-    else score1 += s.holes[1][h];
-  }
+  const score0 = cannotMove === 0 ? s.kazans[0] : s.kazans[0] + remaining;
+  const score1 = cannotMove === 1 ? s.kazans[1] : s.kazans[1] + remaining;
   s.finalScores = [score0, score1];
 }
 

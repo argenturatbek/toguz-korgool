@@ -113,11 +113,9 @@ export function renderBoard(
 
   const doMove = (i: number) => (options?.onMoveOverride ? options.onMoveOverride!(i) : onMove(i));
 
-  const currentPlayer = state.currentPlayer;
-  const opponentHoleNum = (i: number) => 9 - i;
-
+  /* Top row = opponent (P1), bottom row = my side (P0). Numbering fixed: opponent 9→1, my 1→9. */
   const row1 = document.createElement('div');
-  row1.className = 'row row-p1';
+  row1.className = 'row row-p1 row-opponent';
   for (let i = 0; i < HOLE_COUNT; i++) {
     const cell = document.createElement('button');
     cell.type = 'button';
@@ -126,7 +124,7 @@ export function renderBoard(
     cell.setAttribute('data-hole', String(i));
     const holeNum = document.createElement('span');
     holeNum.className = 'hole-num';
-    holeNum.textContent = String(currentPlayer === 1 ? i + 1 : opponentHoleNum(i));
+    holeNum.textContent = String(9 - i);
     const korgoolsEl = document.createElement('div');
     renderKorgools(korgoolsEl, state.holes[1][i]);
     const countEl = document.createElement('span');
@@ -146,7 +144,7 @@ export function renderBoard(
   holesWrap.appendChild(row1);
 
   const row0 = document.createElement('div');
-  row0.className = 'row row-p0';
+  row0.className = 'row row-p0 row-mine';
   for (let i = 0; i < HOLE_COUNT; i++) {
     const cell = document.createElement('button');
     cell.type = 'button';
@@ -155,7 +153,7 @@ export function renderBoard(
     cell.setAttribute('data-hole', String(i));
     const holeNum = document.createElement('span');
     holeNum.className = 'hole-num';
-    holeNum.textContent = String(currentPlayer === 0 ? i + 1 : opponentHoleNum(i));
+    holeNum.textContent = String(i + 1);
     const korgoolsEl = document.createElement('div');
     renderKorgools(korgoolsEl, state.holes[0][i]);
     const countEl = document.createElement('span');
@@ -201,8 +199,8 @@ export function renderBoard(
   if (lastCapture) {
     const capEl = document.createElement('div');
     capEl.className = 'capture-msg';
-    const displayHole = 10 - lastCapture.holeNumber;
-    capEl.textContent = `${t('capturedFrom')} ${lastCapture.count} ${t('fromOpponentHole')} ${displayHole}!`;
+    const opponentDisplayHole = 10 - lastCapture.holeNumber;
+    capEl.textContent = `${t('capturedFrom')} ${lastCapture.count} ${t('fromOpponentHole')} ${opponentDisplayHole}!`;
     container.appendChild(capEl);
   }
 
