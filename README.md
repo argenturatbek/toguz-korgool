@@ -2,8 +2,6 @@
 
 A minimal, responsive Toguz Korgool (Toguz Kumalak) board game for web.
 
-**Repo:** [github.com/argenturatbek/toguz-korgool](https://github.com/argenturatbek/toguz-korgool)
-
 Play locally or **share a link** to play with someone else online.
 
 ## Play locally
