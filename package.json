@@ -1,0 +1,30 @@
+{
+  "name": "toguz-korgool",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/argenturatbek/toguz-korgool.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "server": "tsx server/index.ts"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}
