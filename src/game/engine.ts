@@ -1,6 +1,10 @@
 import type { GameState, Player } from './types.js';
 import { createInitialState } from './state.js';
 
+/** Rules per https://en.wikipedia.org/wiki/Toguz_korgool
+ *  Anticlockwise sowing; first stone in emptied hole (or next hole if only 1 stone);
+ *  last in opponent's even hole → capture; last in opponent's hole with 3 → tuz (9th hole and symmetric forbidden). */
+
 const POSITIONS = 20;
 const HOLE_COUNT = 9;
 
@@ -37,19 +41,27 @@ function cloneState(state: GameState): GameState {
   };
 }
 
-/** Legal moves: hole indices (0..8) that are non-tuz and have at least one stone. */
+/** Legal moves: hole indices (0..8) that are non-tuz and have at least one stone.
+ *  Per rules: a player cannot move from a hole that is the opponent's tuz (on their side). */
 export function getLegalMoves(state: GameState): number[] {
   if (state.phase !== 'playing') return [];
   const p = state.currentPlayer;
   const moves: number[] = [];
+  const opponentTuz = state.tuz[1 - p];
   for (let h = 0; h < HOLE_COUNT; h++) {
-    if (state.holes[p][h] > 0) moves.push(h);
+    if (state.holes[p][h] > 0 && (opponentTuz < 0 || opponentTuz !== h)) moves.push(h);
   }
   return moves;
 }
 
-/** Apply one move. Returns new state or throws. */
-export function applyMove(state: GameState, holeIndex: number): GameState {
+export interface MoveResult {
+  state: GameState;
+  /** When the last stone caused a capture on opponent's hole. */
+  capture?: { holeNumber: number; count: number };
+}
+
+/** Apply one move. Returns result with new state (and optional capture info) or throws. */
+export function applyMove(state: GameState, holeIndex: number): MoveResult {
   if (state.phase !== 'playing') throw new Error('Game has ended');
   const moves = getLegalMoves(state);
   if (!moves.includes(holeIndex)) throw new Error('Invalid move');
@@ -94,12 +106,14 @@ export function applyMove(state: GameState, holeIndex: number): GameState {
 
   const lastPos = pos;
   const lastLoc = positionToHole(lastPos);
+  let capture: { holeNumber: number; count: number } | undefined;
 
   if (lastLoc.type === 'hole' && lastLoc.player === 1 - p) {
     const count = holes[lastLoc.player][lastLoc.holeIndex];
     if (count % 2 === 0) {
       kazans[p] += count;
       holes[lastLoc.player][lastLoc.holeIndex] = 0;
+      capture = { holeNumber: lastLoc.holeIndex + 1, count };
     } else if (count === 3) {
       const holeIdx = lastLoc.holeIndex;
       if (holeIdx !== 8 && tuz[p] === -1) {
@@ -108,6 +122,7 @@ export function applyMove(state: GameState, holeIndex: number): GameState {
           tuz[p] = holeIdx;
           kazans[p] += 3;
           holes[lastLoc.player][lastLoc.holeIndex] = 0;
+          capture = { holeNumber: lastLoc.holeIndex + 1, count: 3 };
         }
       }
     }
@@ -120,7 +135,7 @@ export function applyMove(state: GameState, holeIndex: number): GameState {
     endGame(next);
   }
 
-  return next;
+  return { state: next, capture };
 }
 
 /** Remaining stones on each side go to that side's total; tuz contents go to tuz owner. */

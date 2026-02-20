@@ -1,8 +1,9 @@
 import './style.css';
 import type { GameState } from './game/types.js';
 import { createInitialState } from './game/engine.js';
-import { attachBoard } from './ui/board.js';
+import { attachBoard, type CaptureInfo } from './ui/board.js';
 import { createGame, getGame, joinGame, sendMove } from './api/client.js';
+import { getLang, setLang, t, onLangChange, LANGUAGES } from './i18n.js';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const TOKEN_KEY = (id: string) => `toguz_${id}`;
@@ -12,17 +13,32 @@ function getGameIdFromPath(): string | null {
   return m ? m[1] : null;
 }
 
+function renderLangSwitcher(container: HTMLElement): void {
+  const wrap = document.createElement('div');
+  wrap.className = 'lang-switcher';
+  LANGUAGES.forEach(({ code, labelKey }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'lang-btn' + (getLang() === code ? ' active' : '');
+    btn.textContent = t(labelKey);
+    btn.addEventListener('click', () => setLang(code));
+    wrap.appendChild(btn);
+  });
+  container.appendChild(wrap);
+}
+
 function showHome(): void {
   app.innerHTML = '';
   app.className = 'home-container';
+  renderLangSwitcher(app);
   const title = document.createElement('h1');
   title.className = 'home-title';
-  title.textContent = 'Toguz Korgool';
+  title.textContent = t('title');
   app.appendChild(title);
   const localBtn = document.createElement('button');
   localBtn.type = 'button';
   localBtn.className = 'btn-home';
-  localBtn.textContent = 'Play locally';
+  localBtn.textContent = t('playLocally');
   localBtn.addEventListener('click', () => {
     history.pushState({}, '', '/play');
     initLocalGame();
@@ -31,7 +47,7 @@ function showHome(): void {
   const onlineBtn = document.createElement('button');
   onlineBtn.type = 'button';
   onlineBtn.className = 'btn-home';
-  onlineBtn.textContent = 'Create online game';
+  onlineBtn.textContent = t('createOnline');
   onlineBtn.addEventListener('click', async () => {
     try {
       const { gameId, token, player } = await createGame();
@@ -39,7 +55,7 @@ function showHome(): void {
       history.pushState({}, '', `/play/${gameId}`);
       initOnlineGame(gameId, token, player);
     } catch (e) {
-      alert('Could not create game. Is the server running?');
+      alert(t('errorCreateGame'));
     }
   });
   app.appendChild(onlineBtn);
@@ -50,8 +66,10 @@ let localRender: (() => void) | null = null;
 
 function initLocalGame(): void {
   localState = createInitialState();
+  let lastCapture: CaptureInfo | null = null;
   app.innerHTML = '';
   app.className = 'board-container';
+  renderLangSwitcher(app);
   localRender = attachBoard(
     app,
     () => localState,
@@ -61,7 +79,16 @@ function initLocalGame(): void {
     },
     () => {
       localState = createInitialState();
+      lastCapture = null;
       localRender!();
+    },
+    {
+      t,
+      getLastCapture: () => lastCapture,
+      onCapture: (cap) => {
+        lastCapture = cap ?? null;
+        localRender!();
+      },
     }
   );
 }
@@ -69,6 +96,10 @@ function initLocalGame(): void {
 let onlinePollTimer: number | null = null;
 
 function initOnlineGame(gameId: string, token?: string, player?: 0 | 1): void {
+  if (onlinePollTimer != null) {
+    clearInterval(onlinePollTimer);
+    onlinePollTimer = null;
+  }
   let state: GameState;
   let myToken: string;
   let myPlayer: 0 | 1;
@@ -77,6 +108,7 @@ function initOnlineGame(gameId: string, token?: string, player?: 0 | 1): void {
   const tick = () => {
     app.innerHTML = '';
     app.className = 'board-container';
+    renderLangSwitcher(app);
     const shareUrl = window.location.origin + window.location.pathname;
     attachBoard(
       app,
@@ -94,6 +126,7 @@ function initOnlineGame(gameId: string, token?: string, player?: 0 | 1): void {
         myPlayer,
         shareUrl,
         waitingForOpponent: myPlayer === 0 && !player1Joined,
+        t,
         onMoveOverride: async (holeIndex: number) => {
           try {
             const { state: newState } = await sendMove(gameId, myToken, holeIndex);
@@ -161,5 +194,6 @@ function init(): void {
   showHome();
 }
 
+onLangChange(init);
 window.addEventListener('popstate', init);
 init();

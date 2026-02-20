@@ -69,7 +69,7 @@ app.post('/api/games/:id/move', (req, res) => {
     (currentPlayer === 0 && isCreator) || (currentPlayer === 1 && isPlayer1);
   if (!isCurrentPlayer) return res.status(403).json({ error: 'Not your turn' });
   try {
-    room.state = applyMove(room.state, holeIndex);
+    room.state = applyMove(room.state, holeIndex).state;
     return res.json({ state: room.state });
   } catch (e) {
     return res.status(400).json({ error: (e as Error).message });
