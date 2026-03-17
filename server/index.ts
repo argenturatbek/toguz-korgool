@@ -17,6 +17,7 @@ interface Room {
   state: GameState;
   creatorToken: string;
   player1Token: string | null;
+  messages: { player: Player; text: string; ts: number }[];
 }
 
 const games = new Map<string, Room>();
@@ -32,6 +33,7 @@ app.post('/api/games', (_req, res) => {
     state: createInitialState(),
     creatorToken,
     player1Token: null,
+    messages: [],
   });
   res.json({ gameId, token: creatorToken, player: 0 });
 });
@@ -74,6 +76,28 @@ app.post('/api/games/:id/move', (req, res) => {
   } catch (e) {
     return res.status(400).json({ error: (e as Error).message });
   }
+});
+
+// Simple in-memory chat for two players in a room.
+app.get('/api/games/:id/chat', (req, res) => {
+  const room = games.get(req.params.id);
+  if (!room) return res.status(404).json({ error: 'Game not found' });
+  res.json({ messages: room.messages });
+});
+
+app.post('/api/games/:id/chat', (req, res) => {
+  const room = games.get(req.params.id);
+  if (!room) return res.status(404).json({ error: 'Game not found' });
+  const { token, text } = req.body as { token?: string; text?: string };
+  if (typeof token !== 'string' || typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+  const isCreator = token === room.creatorToken;
+  const isPlayer1 = room.player1Token !== null && token === room.player1Token;
+  if (!isCreator && !isPlayer1) return res.status(403).json({ error: 'Not part of this game' });
+  const player: Player = isCreator ? 0 : 1;
+  room.messages.push({ player, text: text.trim().slice(0, 280), ts: Date.now() });
+  res.json({ messages: room.messages });
 });
 
 app.use(express.static(DIST));

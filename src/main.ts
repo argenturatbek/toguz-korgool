@@ -3,7 +3,7 @@ import type { GameState } from './game/types.js';
 import { createInitialState, applyMove, getScores } from './game/engine.js';
 import { attachBoard, type CaptureInfo } from './ui/board.js';
 import { attachBoard3D } from './ui/board3d.js';
-import { getGame, joinGame, sendMove } from './api/client.js';
+import { createGame, getGame, joinGame, sendMove, getChat, sendChat, type ChatMessage } from './api/client.js';
 import { getLang, setLang, t, onLangChange, LANGUAGES } from './i18n.js';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -45,6 +45,29 @@ function showHome(): void {
     initLocalGame();
   });
   app.appendChild(localBtn);
+
+  const onlineBtn = document.createElement('button');
+  onlineBtn.type = 'button';
+  onlineBtn.className = 'btn-home';
+  onlineBtn.textContent = 'Play online (share link)';
+  onlineBtn.addEventListener('click', async () => {
+    try {
+      const { gameId, token, player } = await createGame();
+      const shareUrl = `${window.location.origin}/play/${gameId}`;
+      history.pushState({}, '', `/play/${gameId}`);
+      localStorage.setItem(TOKEN_KEY(gameId), JSON.stringify({ token, player }));
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert(`Online game created.\nLink copied to clipboard:\n${shareUrl}`);
+      } catch {
+        alert(`Online game created.\nShare this link:\n${shareUrl}`);
+      }
+      initOnlineGame(gameId, token, player);
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  });
+  app.appendChild(onlineBtn);
 }
 
 let localState: GameState = createInitialState();
@@ -151,6 +174,7 @@ function initOnlineGame(gameId: string, token?: string, player?: 0 | 1): void {
   let myToken: string;
   let myPlayer: 0 | 1;
   let player1Joined = false;
+  let chatMessages: ChatMessage[] = [];
 
   const tick = () => {
     app.innerHTML = '';
@@ -185,6 +209,75 @@ function initOnlineGame(gameId: string, token?: string, player?: 0 | 1): void {
         },
       }
     );
+
+    // Simple chat panel under the board for the two players.
+    const chatWrap = document.createElement('div');
+    chatWrap.style.marginTop = '1rem';
+    chatWrap.style.width = '100%';
+    chatWrap.style.maxWidth = '640px';
+    chatWrap.style.background = 'rgba(0,0,0,0.6)';
+    chatWrap.style.borderRadius = '12px';
+    chatWrap.style.padding = '0.5rem 0.75rem';
+    chatWrap.style.display = 'flex';
+    chatWrap.style.flexDirection = 'column';
+    chatWrap.style.gap = '0.35rem';
+
+    const chatTitle = document.createElement('div');
+    chatTitle.textContent = 'Chat';
+    chatTitle.style.fontSize = '0.8rem';
+    chatTitle.style.opacity = '0.8';
+    chatWrap.appendChild(chatTitle);
+
+    const chatList = document.createElement('div');
+    chatList.style.maxHeight = '120px';
+    chatList.style.overflowY = 'auto';
+    chatList.style.fontSize = '0.8rem';
+
+    chatMessages.slice(-30).forEach((m) => {
+      const row = document.createElement('div');
+      const label = m.player === myPlayer ? 'You' : m.player === 0 ? 'P1' : 'P2';
+      row.textContent = `${label}: ${m.text}`;
+      chatList.appendChild(row);
+    });
+    chatWrap.appendChild(chatList);
+
+    const form = document.createElement('form');
+    form.style.display = 'flex';
+    form.style.gap = '0.4rem';
+    form.style.marginTop = '0.25rem';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Type message...';
+    input.style.flex = '1';
+    input.style.fontSize = '0.8rem';
+    input.style.padding = '0.35rem 0.5rem';
+    input.maxLength = 280;
+
+    const btn = document.createElement('button');
+    btn.type = 'submit';
+    btn.textContent = 'Send';
+    btn.style.fontSize = '0.8rem';
+    btn.style.padding = '0.35rem 0.7rem';
+
+    form.appendChild(input);
+    form.appendChild(btn);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      try {
+        const { messages } = await sendChat(gameId, myToken, text);
+        chatMessages = messages;
+        input.value = '';
+        tick();
+      } catch (err) {
+        alert((err as Error).message);
+      }
+    });
+
+    chatWrap.appendChild(form);
+    app.appendChild(chatWrap);
   };
 
   (async () => {
@@ -212,6 +305,13 @@ function initOnlineGame(gameId: string, token?: string, player?: 0 | 1): void {
         player1Joined = again.player1Joined;
       }
     }
+    // Load initial chat
+    try {
+      const { messages } = await getChat(gameId);
+      chatMessages = messages;
+    } catch {
+      chatMessages = [];
+    }
     tick();
     onlinePollTimer = window.setInterval(async () => {
       try {
@@ -222,6 +322,16 @@ function initOnlineGame(gameId: string, token?: string, player?: 0 | 1): void {
         if (prev !== next) {
           state = data.state;
           tick();
+        }
+        // poll chat
+        try {
+          const { messages } = await getChat(gameId);
+          if (JSON.stringify(messages) !== JSON.stringify(chatMessages)) {
+            chatMessages = messages;
+            tick();
+          }
+        } catch {
+          // ignore chat errors
         }
       } catch (_) {}
     }, 2000) as unknown as number;
