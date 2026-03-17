@@ -3,7 +3,7 @@ import type { GameState } from './game/types.js';
 import { createInitialState, applyMove, getScores } from './game/engine.js';
 import { attachBoard, type CaptureInfo } from './ui/board.js';
 import { attachBoard3D } from './ui/board3d.js';
-import { createGame, getGame, joinGame, sendMove } from './api/client.js';
+import { getGame, joinGame, sendMove } from './api/client.js';
 import { getLang, setLang, t, onLangChange, LANGUAGES } from './i18n.js';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
