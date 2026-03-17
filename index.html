@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>Toguz Korgool</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#000000" />
     <style>
       :root {
         --bg: #121212;
@@ -480,6 +482,13 @@
     </div>
     <script type="module">
       import { createInitialState, applyMove, getScores, getLegalMoves } from '/src/game/engine.ts';
+
+      // Register service worker for offline + installability
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
 
       // Lightweight "korgool move" sound on pit tap + simple stopwatch
       (function () {
