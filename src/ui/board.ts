@@ -87,26 +87,7 @@ export function renderBoard(
   container.appendChild(scoresEl);
 
   const board = document.createElement('div');
-  board.className = 'board';
-
-  const kazan1Wrap = document.createElement('div');
-  kazan1Wrap.className = 'kazan-wrap kazan-wrap-p1';
-  const kazan1Label = document.createElement('span');
-  kazan1Label.className = 'kazan-label';
-  kazan1Label.textContent = t('kazanP2');
-  const kazan1 = document.createElement('div');
-  kazan1.className = 'kazan';
-  kazan1.setAttribute('data-player', '1');
-  const kazan1Korgools = document.createElement('div');
-  renderKorgools(kazan1Korgools, score1);
-  kazan1.appendChild(kazan1Korgools);
-  const kazan1Count = document.createElement('span');
-  kazan1Count.className = 'kazan-count';
-  kazan1Count.textContent = String(score1);
-  kazan1.appendChild(kazan1Count);
-  kazan1Wrap.appendChild(kazan1Label);
-  kazan1Wrap.appendChild(kazan1);
-  board.appendChild(kazan1Wrap);
+  board.className = 'board board-theme-reference';
 
   const holesWrap = document.createElement('div');
   holesWrap.className = 'holes-wrap';
@@ -143,6 +124,32 @@ export function renderBoard(
   }
   holesWrap.appendChild(row1);
 
+  const kazanRow = document.createElement('div');
+  kazanRow.className = 'kazan-row';
+  const kazan1 = document.createElement('div');
+  kazan1.className = 'kazan-oval';
+  kazan1.setAttribute('data-player', '1');
+  const kazan1Korgools = document.createElement('div');
+  renderKorgools(kazan1Korgools, score1);
+  kazan1.appendChild(kazan1Korgools);
+  const kazan1Count = document.createElement('span');
+  kazan1Count.className = 'kazan-count';
+  kazan1Count.textContent = String(score1);
+  kazan1.appendChild(kazan1Count);
+  const kazan0 = document.createElement('div');
+  kazan0.className = 'kazan-oval';
+  kazan0.setAttribute('data-player', '0');
+  const kazan0Korgools = document.createElement('div');
+  renderKorgools(kazan0Korgools, score0);
+  kazan0.appendChild(kazan0Korgools);
+  const kazan0Count = document.createElement('span');
+  kazan0Count.className = 'kazan-count';
+  kazan0Count.textContent = String(score0);
+  kazan0.appendChild(kazan0Count);
+  kazanRow.appendChild(kazan1);
+  kazanRow.appendChild(kazan0);
+  holesWrap.appendChild(kazanRow);
+
   const row0 = document.createElement('div');
   row0.className = 'row row-p0 row-mine';
   for (let i = 0; i < HOLE_COUNT; i++) {
@@ -174,26 +181,10 @@ export function renderBoard(
 
   board.appendChild(holesWrap);
 
-  const kazan0Wrap = document.createElement('div');
-  kazan0Wrap.className = 'kazan-wrap kazan-wrap-p0';
-  const kazan0Label = document.createElement('span');
-  kazan0Label.className = 'kazan-label';
-  kazan0Label.textContent = t('kazanP1');
-  const kazan0 = document.createElement('div');
-  kazan0.className = 'kazan';
-  kazan0.setAttribute('data-player', '0');
-  const kazan0Korgools = document.createElement('div');
-  renderKorgools(kazan0Korgools, score0);
-  kazan0.appendChild(kazan0Korgools);
-  const kazan0Count = document.createElement('span');
-  kazan0Count.className = 'kazan-count';
-  kazan0Count.textContent = String(score0);
-  kazan0.appendChild(kazan0Count);
-  kazan0Wrap.appendChild(kazan0Label);
-  kazan0Wrap.appendChild(kazan0);
-  board.appendChild(kazan0Wrap);
-
   container.appendChild(board);
+
+  const footer = document.createElement('div');
+  footer.className = 'board-footer';
 
   const lastCapture = options?.getLastCapture?.();
   if (lastCapture) {
@@ -201,7 +192,7 @@ export function renderBoard(
     capEl.className = 'capture-msg';
     const opponentDisplayHole = 10 - lastCapture.holeNumber;
     capEl.textContent = `${t('capturedFrom')} ${lastCapture.count} ${t('fromOpponentHole')} ${opponentDisplayHole}!`;
-    container.appendChild(capEl);
+    footer.appendChild(capEl);
   }
 
   const turnEl = document.createElement('div');
@@ -218,7 +209,7 @@ export function renderBoard(
     else if (b > a) turnEl.textContent = `${t('player2Wins')} ${b}–${a}`;
     else turnEl.textContent = `${t('draw')} ${a}–${b}`;
   }
-  container.appendChild(turnEl);
+  footer.appendChild(turnEl);
 
   const onNewGame = options?.onNewGame;
   if (onNewGame !== undefined) {
@@ -227,8 +218,10 @@ export function renderBoard(
     newGameBtn.className = 'btn-new';
     newGameBtn.textContent = t('newGame');
     newGameBtn.addEventListener('click', onNewGame);
-    container.appendChild(newGameBtn);
+    footer.appendChild(newGameBtn);
   }
+
+  container.appendChild(footer);
 }
 
 export function attachBoard(

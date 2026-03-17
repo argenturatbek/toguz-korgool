@@ -1,13 +1,632 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>Toguz Korgool</title>
+    <style>
+      :root {
+        --bg: #121212;
+        --surface: #1e1e1e;
+        --surface-soft: #181818;
+        --white: #ffffff;
+        --gold: #c4a76b;
+        --muted: #a0a0a0;
+        --accent: #4f8cff;
+        --radius-pill: 999px;
+        --pit-size: 10vh;
+        --kazan-width: 10vw;
+        --board-max: 110vh;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: radial-gradient(circle at top left, #1f1f1f, #000000);
+        color: var(--white);
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .game-shell {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      .game-rotate-hint {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.85);
+        color: #f5f5f5;
+        font-size: 1.1rem;
+        text-align: center;
+        padding: 2rem;
+        z-index: 5;
+      }
+
+      .game-wrapper {
+        position: relative;
+        /* In landscape, fill the full viewport.
+           In portrait we rotate this wrapper, handled in the media query below. */
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform-origin: center center;
+      }
+
+      @media (orientation: portrait) {
+        .game-wrapper {
+          transform: rotate(90deg);
+        }
+        .game-rotate-hint {
+          display: flex;
+        }
+      }
+
+      .board-frame {
+        /* Fill most of viewport in landscape; leave subtle breathing room. */
+        width: min(170vh, 96vw);
+        height: min(90vh, 52vw);
+        padding: 1.4vh 2vw;
+        border-radius: 2.4rem;
+        background: radial-gradient(circle at 20% -10%, #252525 0, #121212 55%, #050505 100%);
+        box-shadow:
+          0 18px 40px rgba(0, 0, 0, 0.85),
+          0 0 0 1px rgba(255, 255, 255, 0.03);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        row-gap: 1vh;
+        color: var(--muted);
+      }
+
+      .board-header,
+      .board-footer {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 1.3vh;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .board-header span,
+      .board-footer span {
+        opacity: 0.9;
+      }
+
+      .board-divider {
+        grid-column: 1 / -1;
+        height: 0.16rem;
+        border-radius: 999px;
+        background: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0) 0%,
+          rgba(255, 255, 255, 0.08) 20%,
+          rgba(255, 255, 255, 0.16) 50%,
+          rgba(255, 255, 255, 0.08) 80%,
+          rgba(255, 255, 255, 0) 100%
+        );
+        box-shadow:
+          0 0 8px rgba(0, 0, 0, 0.7),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        opacity: 0.85;
+      }
+
+      .board-divider--mid {
+        height: 0.12rem;
+        margin-top: 0.4vh;
+      }
+
+      .turn-indicator {
+        padding: 0.4vh 1.2vh;
+        border-radius: var(--radius-pill);
+        background: linear-gradient(135deg, #202020, #191919);
+        box-shadow:
+          4px 4px 8px rgba(0, 0, 0, 0.8),
+          -4px -4px 8px rgba(70, 70, 70, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        color: var(--white);
+        font-size: 1.3vh;
+      }
+
+      .clock {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5vh;
+        padding: 0.25vh 0.9vh;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.7);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+        font-size: 1.25vh;
+        color: #f5f5f5;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .clock-label {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 0.95em;
+        opacity: 0.8;
+      }
+
+      .clock-time {
+        font-weight: 600;
+      }
+
+      .kazan-inner {
+        /* Kazans: lower and wider than pits, with a hint of gold */
+        width: 82%;
+        height: 75%;
+        border-radius: 1.6rem;
+        background: radial-gradient(circle at 10% 0%, #30302a 0, #1b1b17 55%, #0a0a08 100%);
+        box-shadow:
+          inset 2px 2px 4px rgba(0, 0, 0, 0.9),
+          inset -2px -2px 4px rgba(90, 80, 50, 0.25),
+          0 6px 14px rgba(0, 0, 0, 0.75);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.8vh;
+        position: relative;
+        margin-inline: auto;
+      }
+
+      .kazan-inner::before {
+        content: '';
+        position: absolute;
+        width: 0.9vh;
+        height: 0.9vh;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 20%, #faf5e6, #d3c29a 70%, #b9a16d 100%);
+        box-shadow:
+          -1.4vh -1.2vh 0 0 rgba(240, 230, 200, 0.9),
+          0 -2.0vh 0 0 rgba(240, 230, 200, 0.9),
+          1.4vh -1.2vh 0 0 rgba(240, 230, 200, 0.9),
+          -1.6vh 0.4vh 0 0 rgba(240, 230, 200, 0.9),
+          0 0.4vh 0 0 rgba(240, 230, 200, 0.9),
+          1.6vh 0.4vh 0 0 rgba(240, 230, 200, 0.9),
+          -1.0vh 2.0vh 0 0 rgba(240, 230, 200, 0.9),
+          0 2.3vh 0 0 rgba(240, 230, 200, 0.9),
+          1.0vh 2.0vh 0 0 rgba(240, 230, 200, 0.9);
+        filter: drop-shadow(0 0.35vh 0.45vh rgba(0, 0, 0, 0.8));
+        opacity: 0.6;
+      }
+
+      .kazan-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 0.8vw;
+        align-items: stretch;
+        padding: 0.2vh 0;
+      }
+
+      .kazan-label {
+        position: absolute;
+        top: 14%;
+        transform: translateY(-50%);
+        font-size: 1.1vh;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        padding: 0.1vh 0.6vh;
+        border-radius: 0.5rem;
+        background: rgba(0, 0, 0, 0.75);
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+        white-space: nowrap;
+      }
+
+      .kazan-label--p1 {
+        color: #f5f5f5;
+      }
+
+      .kazan-label--p2 {
+        color: var(--gold);
+      }
+
+      .kazan-count {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 0.1vh 1vh;
+        border-radius: 0.7rem;
+        font-size: 3vh;
+        font-weight: 700;
+        color: #fdf6dd;
+        background: rgba(0, 0, 0, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+        white-space: nowrap;
+      }
+
+      /* Place P2 score to the left of its kazan, P1 to the right */
+      .kazan-row .kazan-inner:first-child .kazan-count {
+        left: -4.2vh;
+        text-align: right;
+      }
+
+      .kazan-row .kazan-inner:last-child .kazan-count {
+        right: -4.2vh;
+        text-align: left;
+      }
+
+      .kazan-row .kazan-inner:first-child .kazan-label {
+        left: -4.2vh;
+        text-align: right;
+      }
+
+      .kazan-row .kazan-inner:last-child .kazan-label {
+        right: -4.2vh;
+        text-align: left;
+      }
+
+      .board-middle {
+        grid-row: 2;
+        display: grid;
+        /* Give a bit more height to the pit rows than the kazans row */
+        grid-template-rows: 1.2fr 0.8fr 1.2fr;
+        row-gap: 1vh;
+        align-items: stretch;
+      }
+
+      .pits-row {
+        display: grid;
+        grid-template-columns: repeat(9, minmax(0, 1fr));
+        column-gap: 0.8vw;
+        align-items: stretch;
+        justify-items: stretch;
+      }
+
+      .pit {
+        /* Pit fills its grid cell a bit more vertically than kazans */
+        width: 100%;
+        height: 96%;
+        margin-inline: auto;
+        border-radius: 999px;
+        background: radial-gradient(circle at 30% 20%, #2b2b2b 0, #141414 70%);
+        box-shadow:
+          inset 3px 3px 6px rgba(0, 0, 0, 0.85),
+          inset -3px -3px 6px rgba(70, 70, 70, 0.16);
+        position: relative;
+        color: var(--white);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        cursor: pointer;
+        transition: transform 0.08s ease-out, box-shadow 0.12s ease-out, border-color 0.12s;
+        user-select: none;
+        -webkit-user-select: none;
+        font-variant-numeric: tabular-nums;
+        padding: 0.7vh 0.3vw 1.8vh;
+        overflow: hidden;
+      }
+
+      .pit-stones {
+        position: absolute;
+        inset: 0.9vh 0.5vw 2.1vh;
+        pointer-events: none;
+      }
+
+      .pit-stone {
+        position: absolute;
+        width: 0.9vh;
+        height: 0.9vh;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 20%, #faf5e6, #d3c29a 70%, #b9a16d 100%);
+        box-shadow: 0 0.18vh 0.22vh rgba(0, 0, 0, 0.9);
+      }
+
+      .pit-id {
+        position: absolute;
+        top: 0.3vh;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 1.2vh;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: rgba(255, 255, 255, 0.8);
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+      }
+
+      .pit[data-player='1'] {
+        color: var(--white);
+      }
+
+      .pit[data-player='2'] {
+        color: var(--gold);
+      }
+
+      .pit:active {
+        transform: scale(0.94) translateY(1px);
+        box-shadow:
+          inset 6px 6px 12px rgba(0, 0, 0, 1),
+          inset -2px -2px 4px rgba(60, 60, 60, 0.22);
+        border-color: rgba(255, 255, 255, 0.08);
+      }
+
+      .pit-count {
+        position: absolute;
+        bottom: 0.5vh;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0.1vh 0.6vh;
+        border-radius: 0.5rem;
+        font-size: 2.1vh;
+        font-weight: 700;
+        color: #fff9e8;
+        background: rgba(0, 0, 0, 0.7);
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.95);
+        z-index: 1;
+      }
+
+      .pit-index {
+        position: absolute;
+        top: -1.6vh;
+        right: 0.1vw;
+        font-size: 1.3vh;
+        font-weight: 600;
+        padding: 0.1vh 0.3vh;
+        border-radius: 0.4rem;
+        background: rgba(0, 0, 0, 0.65);
+        color: #f5f5f5;
+        opacity: 1;
+      }
+
+      .branding {
+        opacity: 0.85;
+        font-size: 1.1vh;
+        background: transparent;
+        border-radius: var(--radius-pill);
+        padding: 0.4vh 1.2vh;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      @media (max-width: 780px) {
+        .board-frame {
+          border-radius: 2.4rem;
+          padding: 1.4vh 2vw;
+        }
+        .kazan-inner {
+          width: 70%;
+          height: 72%;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <div class="game-shell">
+      <div class="game-rotate-hint">
+        Rotate your device to landscape to play Toguz Korgool.
+      </div>
+
+      <div class="game-wrapper">
+        <section class="board-frame" aria-label="Toguz Korgool board">
+          <header class="board-header">
+            <span>PLAYER 2 — KAZAN: 0</span>
+            <span class="turn-indicator">P2&apos;s TURN</span>
+            <div class="clock" aria-label="Game stopwatch">
+              <span class="clock-label">TIME</span>
+              <span class="clock-time" id="clock-time">00:00</span>
+            </div>
+          </header>
+
+          <div class="board-divider" aria-hidden="true"></div>
+
+          <main class="board-middle" aria-label="Toguz Korgool pits and kazans">
+            <div class="pits-row pits-row-top">
+              <button class="pit" data-player="2"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">9</span></button>
+              <button class="pit" data-player="2"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">8</span></button>
+              <button class="pit" data-player="2"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">7</span></button>
+              <button class="pit" data-player="2"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">6</span></button>
+              <button class="pit" data-player="2"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">5</span></button>
+              <button class="pit" data-player="2"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">4</span></button>
+              <button class="pit" data-player="2"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">3</span></button>
+              <button class="pit" data-player="2"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">2</span></button>
+              <button class="pit" data-player="2"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">1</span></button>
+            </div>
+
+            <div class="kazan-row" aria-label="Kazans">
+              <div class="kazan-inner">
+                <span class="kazan-label kazan-label--p2">Player 2</span>
+                <span class="kazan-count">0</span>
+              </div>
+              <div class="kazan-inner">
+                <span class="kazan-label kazan-label--p1">Player 1</span>
+                <span class="kazan-count">0</span>
+              </div>
+            </div>
+
+            <div class="pits-row pits-row-bottom">
+              <button class="pit" data-player="1"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">1</span></button>
+              <button class="pit" data-player="1"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">2</span></button>
+              <button class="pit" data-player="1"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">3</span></button>
+              <button class="pit" data-player="1"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">4</span></button>
+              <button class="pit" data-player="1"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">5</span></button>
+              <button class="pit" data-player="1"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">6</span></button>
+              <button class="pit" data-player="1"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">7</span></button>
+              <button class="pit" data-player="1"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">8</span></button>
+              <button class="pit" data-player="1"><span class="pit-id"></span><div class="pit-stones"></div><span class="pit-count">9</span><span class="pit-index">9</span></button>
+            </div>
+          </main>
+
+          <footer class="board-footer">
+            <span>PLAYER 1 — KAZAN: 0</span>
+            <span>Playable Toguz Korgool</span>
+          </footer>
+        </section>
+      </div>
+    </div>
+    <script type="module">
+      import { createInitialState, applyMove, getScores, getLegalMoves } from '/src/game/engine.ts';
+
+      // Lightweight "korgool move" sound on pit tap + simple stopwatch
+      (function () {
+        // Stopwatch (секундомер)
+        const clockEl = document.getElementById('clock-time');
+        if (clockEl) {
+          let start = Date.now();
+          setInterval(() => {
+            const diff = Math.floor((Date.now() - start) / 1000);
+            const m = String(Math.floor(diff / 60)).padStart(2, '0');
+            const s = String(diff % 60).padStart(2, '0');
+            clockEl.textContent = `${m}:${s}`;
+          }, 1000);
+        }
+
+        // Sound + game logic per pit tap
+        let state = createInitialState();
+
+        const pits = Array.from(document.querySelectorAll('.pit'));
+        const kazanCounts = Array.from(document.querySelectorAll('.kazan-count'));
+        const footerText = document.querySelector('.board-footer span:last-child');
+        const headerTurn = document.querySelector('.turn-indicator');
+
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let ctx = null;
+        function playTick() {
+          if (!AudioCtx) return;
+          try {
+            if (!ctx) ctx = new AudioCtx();
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(750, now);
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.14);
+          } catch {
+            // ignore audio errors
+          }
+        }
+
+        function getHoleIndex(pit) {
+          const display = Number(pit.querySelector('.pit-index').textContent);
+          // Both rows use the same hole numbering 1–9 for engine indices 0–8.
+          // Top row is visually reversed (9→1), but each pit's label is already
+          // its logical hole number, so we just map 1→0, 2→1, ..., 9→8.
+          return display - 1;
+        }
+
+        // Label each pit with its human hole number (1–9) as seen on the board.
+        pits.forEach((pit) => {
+          const idEl = pit.querySelector('.pit-id');
+          const numEl = pit.querySelector('.pit-index');
+          if (idEl && numEl) idEl.textContent = numEl.textContent || '';
+        });
+
+        function render() {
+          const legal = getLegalMoves(state);
+
+          pits.forEach((pit) => {
+            const p = pit.dataset.player === '2' ? 1 : 0;
+            const idx = getHoleIndex(pit);
+            const count = state.holes[p][idx];
+            pit.querySelector('.pit-count').textContent = String(count);
+            pit.disabled = !(state.currentPlayer === p && legal.includes(idx) && count > 0);
+          });
+
+          const [s0, s1] = getScores(state);
+          // Player 2 (top, engine player 1) on left kazan
+          if (kazanCounts[0]) kazanCounts[0].textContent = String(s1);
+          if (kazanCounts[1]) kazanCounts[1].textContent = String(s0);
+
+          if (headerTurn) {
+            headerTurn.textContent =
+              state.phase === 'playing'
+                ? state.currentPlayer === 0
+                  ? "P1'S TURN"
+                  : "P2'S TURN"
+                : 'GAME OVER';
+          }
+          if (footerText && state.phase === 'ended' && state.finalScores) {
+            const [a, b] = state.finalScores;
+            footerText.textContent =
+              a > b ? `Player 1 wins ${a}–${b}` : b > a ? `Player 2 wins ${b}–${a}` : `Draw ${a}–${b}`;
+          }
+        }
+
+        pits.forEach((pit) => {
+          pit.addEventListener('click', () => {
+            const idx = getHoleIndex(pit);
+            try {
+              // Single tactile sound per move
+              playTick();
+
+              const result = applyMove(state, idx);
+              state = result.state;
+              render();
+            } catch {
+              // ignore invalid moves
+            }
+          });
+        });
+
+        function renderPitStones() {
+          pits.forEach((pit) => {
+            const p = pit.dataset.player === '2' ? 1 : 0;
+            const idx = getHoleIndex(pit);
+            const count = state.holes[p][idx];
+            const container = pit.querySelector('.pit-stones');
+            if (!container) return;
+            container.textContent = '';
+            for (let i = 0; i < count; i += 1) {
+              const dot = document.createElement('span');
+              dot.className = 'pit-stone';
+              // Place stones in a loose, dispersed ring inside the pit
+              const angleBase = (2 * Math.PI * i) / Math.max(count, 1);
+              const angle = angleBase + (Math.random() - 0.5) * 0.6;
+              const radius = 0.25 + Math.random() * 0.22; // 0.25–0.47 of half-size
+              const x = Math.cos(angle) * radius;
+              const y = Math.sin(angle) * radius * 0.7; // squash vertically
+              const left = 50 + x * 70; // %
+              const top = 50 + y * 70; // %
+              dot.style.left = `${left}%`;
+              dot.style.top = `${top}%`;
+              container.appendChild(dot);
+            }
+          });
+        }
+
+        function initialRender() {
+          render();
+          renderPitStones();
+        }
+
+        // Re-render stones whenever state changes
+        const originalRender = render;
+        render = function patchedRender() {
+          originalRender();
+          renderPitStones();
+        };
+
+        initialRender();
+      })();
+    </script>
   </body>
 </html>

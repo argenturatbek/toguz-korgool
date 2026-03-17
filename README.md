@@ -28,6 +28,10 @@ Play locally or **share a link** to play with someone else online.
 - `npm run build` – Build frontend to `dist/`.
 - `npm run test` – Run game logic tests.
 
+## Rules
+
+Game rules follow the official description and infographic from **Sputnik Кыргызстан**: [Тогуз коргоол — правила древней стратегической игры кыргызов](https://ru.sputnik.kg/20230831/toguz-korgool-igra-pravila-1077824986.html). The in-app "Rules" link opens this page.
+
 ## Tech
 
 - **Frontend:** TypeScript, Vite, vanilla DOM. Responsive, touch-friendly UI.
